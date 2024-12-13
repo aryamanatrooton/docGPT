@@ -3,8 +3,6 @@ import tempfile
 import streamlit as st
 from embedchain import App
 
-
-
 def embedchain_bot(db_path, api_key):
     return App.from_config(
         config={
@@ -27,9 +25,11 @@ def embedchain_bot(db_path, api_key):
             "chunker": {"chunk_size": 2000, "chunk_overlap": 0, "length_function": "len"},
         }
     )
+
 def get_db_path():
     tmpdirname = tempfile.mkdtemp()
     return tmpdirname
+
 def get_ec_app(api_key):
     if "app" in st.session_state:
         print("Found app in session state")
@@ -40,14 +40,17 @@ def get_ec_app(api_key):
         app = embedchain_bot(db_path, api_key)
         st.session_state.app = app
     return app
+
+# Use the API key from secrets
+api_key = st.secrets["OPEN_AI_KEY"] if "OPEN_AI_KEY" in st.secrets else None
+
+if api_key is None:
+    st.error("OpenAI API key not found in secrets. Please make sure to add it to the Streamlit secrets.")
+    st.stop()
+
+app = get_ec_app(api_key)
+
 with st.sidebar:
-    openai_access_token = st.text_input("OpenAI API Key", key="api_key", type="password")
-    "WE DO NOT STORE YOUR OPENAI KEY."
-    "Just paste your OpenAI API key here and we'll use it to power the chatbot. [Get your OpenAI API key](https://platform.openai.com/api-keys)"  # noqa: E501
-
-    if st.session_state.api_key:
-        app = get_ec_app(st.session_state.api_key)
-
     pdf_files = st.file_uploader("Upload your PDF files", accept_multiple_files=True, type="pdf")
     add_pdf_files = st.session_state.get("add_pdf_files", [])
     for pdf_file in pdf_files:
@@ -55,9 +58,6 @@ with st.sidebar:
         if file_name in add_pdf_files:
             continue
         try:
-            if not st.session_state.api_key:
-                st.error("Please enter your OpenAI API Key")
-                st.stop()
             temp_file_name = None
             with tempfile.NamedTemporaryFile(mode="wb", delete=False, prefix=file_name, suffix=".pdf") as f:
                 f.write(pdf_file.getvalue())
@@ -65,16 +65,15 @@ with st.sidebar:
             if temp_file_name:
                 st.markdown(f"Adding {file_name} to knowledge base...")
                 app.add(temp_file_name, data_type="pdf_file")
-                st.markdown("")
+                st.markdown("Added successfully!")
                 add_pdf_files.append(file_name)
                 os.remove(temp_file_name)
-            st.session_state.messages.append({"role": "assistant", "content": f"Added {file_name} to knowledge base!"})
+            st.session_state["add_pdf_files"] = add_pdf_files
         except Exception as e:
             st.error(f"Error adding {file_name} to knowledge base: {e}")
             st.stop()
-    st.session_state["add_pdf_files"] = add_pdf_files
 
-st.title("📄docGPT")
+st.title("📄Chat With Me Via Doc")
 
 if "messages" not in st.session_state:
     st.session_state.messages = [
@@ -92,12 +91,6 @@ for message in st.session_state.messages:
         st.markdown(message["content"])
 
 if prompt := st.chat_input("Ask me anything!"):
-    if not st.session_state.api_key:
-        st.error("Please enter your OpenAI API Key", icon="🤖")
-        st.stop()
-
-    app = get_ec_app(st.session_state.api_key)
-
     with st.chat_message("user"):
         st.session_state.messages.append({"role": "user", "content": prompt})
         st.markdown(prompt)
