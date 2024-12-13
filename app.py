@@ -67,7 +67,7 @@ with st.sidebar:
             st.stop()
     st.session_state["add_pdf_files"] = add_pdf_files
 
-st.title("📄docGPT")
+st.title("📄Chat With Me Via Docs A.")
 
 if "messages" not in st.session_state:
     st.session_state.messages = [
