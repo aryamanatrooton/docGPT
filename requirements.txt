@@ -3,3 +3,6 @@ embedchain
 langchain-text-splitters
 pysqlite3-binary
 chromadb
+bcrypt
+pymongo
+python-docx
